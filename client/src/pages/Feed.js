@@ -35,7 +35,7 @@ export default function Feed() {
       setPosts(data.posts);
       setTotalPages(data.pages);
     } catch (err) {
-      console.error(err);
+      // silent fail in production
     }
     setLoading(false);
   }, [API, page, category, search]);

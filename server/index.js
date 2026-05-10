@@ -8,6 +8,10 @@ const bcrypt = require('bcryptjs');
 const { Collection } = require('./db');
 
 const app = express();
+
+// Trust the Railway proxy so rate-limit & req.ip work correctly
+app.set('trust proxy', 1);
+
 const admins = new Collection('admins');
 const posts = new Collection('posts');
 const tips = new Collection('tips');
@@ -38,9 +42,11 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "blob:"],
       connectSrc: ["'self'"],
       frameSrc: ["'none'"],
+      frameAncestors: ["'none'"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
+      upgradeInsecureRequests: [],
     }
   } : false,
   hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
@@ -148,9 +154,9 @@ app.get('/api/stats/admin', require('./middleware/auth'), (req, res) => {
   }
 });
 
-// Health check
+// Health check (no info disclosure)
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime() });
+  res.json({ status: 'ok' });
 });
 
 // Serve React build in production

@@ -23,7 +23,7 @@ export default function PostDetail() {
   useEffect(() => {
     axios.get(`${API}/posts/${id}`)
       .then(({ data }) => setPost(data))
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [API, id]);
 

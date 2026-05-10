@@ -15,8 +15,12 @@ function readCollection(collection) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
+// Atomic write: write to temp file, then rename. Prevents corruption from concurrent writes.
 function writeCollection(collection, data) {
-  fs.writeFileSync(getFilePath(collection), JSON.stringify(data, null, 2), 'utf8');
+  const file = getFilePath(collection);
+  const tmp = file + '.' + crypto.randomBytes(6).toString('hex') + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
+  fs.renameSync(tmp, file);
 }
 
 function generateId() {

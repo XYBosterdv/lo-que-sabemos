@@ -421,7 +421,7 @@ function PostEditor({ post, API, headers, onSave, onCancel }) {
       }
       onSave();
     } catch (err) {
-      console.error(err);
+      alert('Error al guardar');
     }
     setSaving(false);
   };

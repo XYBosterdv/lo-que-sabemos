@@ -1,8 +1,11 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const sanitize = require('sanitize-html');
+const sharp = require('sharp');
+const { PDFDocument } = require('pdf-lib');
 const { Collection } = require('../db');
 const auth = require('../middleware/auth');
 const router = express.Router();
@@ -11,24 +14,15 @@ const posts = new Collection('posts');
 
 const ALLOWED_MIMES = [
   'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  'application/pdf'
 ];
+const ALLOWED_EXTS = /\.(jpeg|jpg|png|gif|webp|pdf)$/i;
 
-const ALLOWED_EXTS = /\.(jpeg|jpg|png|gif|webp|pdf|doc|docx)$/i;
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads')),
-  filename: (req, file, cb) => {
-    const unique = crypto.randomBytes(16).toString('hex');
-    cb(null, unique + path.extname(file.originalname).toLowerCase());
-  }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024, files: 10 },
   fileFilter: (req, file, cb) => {
     if (!ALLOWED_MIMES.includes(file.mimetype) || !ALLOWED_EXTS.test(file.originalname)) {
       return cb(new Error('Tipo de archivo no permitido'), false);
@@ -36,6 +30,40 @@ const upload = multer({
     cb(null, true);
   }
 });
+
+// Strip ALL metadata from uploads
+async function scrubAndSave(file, uploadDir) {
+  const id = crypto.randomBytes(16).toString('hex');
+  const isImage = file.mimetype.startsWith('image/');
+  const isPdf = file.mimetype === 'application/pdf';
+
+  let outputBuffer, outName;
+
+  if (isImage) {
+    outputBuffer = await sharp(file.buffer).rotate().webp({ quality: 85 }).toBuffer();
+    outName = id + '.webp';
+  } else if (isPdf) {
+    const src = await PDFDocument.load(file.buffer, { ignoreEncryption: true });
+    const dest = await PDFDocument.create();
+    const pages = await dest.copyPages(src, src.getPageIndices());
+    pages.forEach(p => dest.addPage(p));
+    dest.setTitle('');
+    dest.setAuthor('');
+    dest.setSubject('');
+    dest.setKeywords([]);
+    dest.setProducer('');
+    dest.setCreator('');
+    dest.setCreationDate(new Date(0));
+    dest.setModificationDate(new Date(0));
+    outputBuffer = Buffer.from(await dest.save({ useObjectStreams: false }));
+    outName = id + '.pdf';
+  } else {
+    throw new Error('Tipo no soportado');
+  }
+
+  await fs.promises.writeFile(path.join(uploadDir, outName), outputBuffer);
+  return outName;
+}
 
 router.get('/', (req, res) => {
   try {
@@ -51,8 +79,8 @@ router.get('/', (req, res) => {
       items = items.filter(i =>
         (i.title || '').toLowerCase().includes(s) ||
         (i.content || '').toLowerCase().includes(s) ||
-        (i.tags || []).some(t => t.toLowerCase().includes(s)) ||
-        (i.persons || []).some(pr => pr.name.toLowerCase().includes(s))
+        (i.tags || []).some(t => (t || '').toLowerCase().includes(s)) ||
+        (i.persons || []).some(pr => (pr?.name || '').toLowerCase().includes(s))
       );
     }
 
@@ -91,18 +119,22 @@ router.get('/:id', (req, res) => {
   }
 });
 
-router.post('/', auth, upload.array('files', 10), (req, res) => {
+router.post('/', auth, upload.array('files', 10), async (req, res) => {
   try {
     const { title, content, summary, category, tags, persons, locations, published, pinned } = req.body;
+    const uploadDir = path.join(__dirname, '..', 'uploads');
+    await fs.promises.mkdir(uploadDir, { recursive: true });
+
     const images = [];
     const documents = [];
 
     if (req.files) {
       for (const file of req.files) {
-        if (/\.(jpg|jpeg|png|gif|webp)$/i.test(file.filename)) {
-          images.push('/uploads/' + file.filename);
+        const filename = await scrubAndSave(file, uploadDir);
+        if (filename.endsWith('.webp')) {
+          images.push('/uploads/' + filename);
         } else {
-          documents.push({ filename: file.filename, originalName: file.originalname, path: '/uploads/' + file.filename });
+          documents.push({ filename, path: '/uploads/' + filename });
         }
       }
     }
@@ -128,12 +160,12 @@ router.post('/', auth, upload.array('files', 10), (req, res) => {
 
     res.status(201).json(post);
   } catch (err) {
-    console.error(err);
+    console.error('[Posts POST] error');
     res.status(500).json({ error: 'Error al crear publicacion' });
   }
 });
 
-router.put('/:id', auth, upload.array('files', 10), (req, res) => {
+router.put('/:id', auth, upload.array('files', 10), async (req, res) => {
   try {
     const post = posts.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'No encontrada' });
@@ -158,12 +190,12 @@ router.put('/:id', auth, upload.array('files', 10), (req, res) => {
     let docs = existingDocs ? JSON.parse(existingDocs) : (post.documents || []);
 
     if (req.files) {
+      const uploadDir = path.join(__dirname, '..', 'uploads');
+      await fs.promises.mkdir(uploadDir, { recursive: true });
       for (const file of req.files) {
-        if (/\.(jpg|jpeg|png|gif|webp)$/i.test(file.filename)) {
-          imgs.push('/uploads/' + file.filename);
-        } else {
-          docs.push({ filename: file.filename, originalName: file.originalname, path: '/uploads/' + file.filename });
-        }
+        const filename = await scrubAndSave(file, uploadDir);
+        if (filename.endsWith('.webp')) imgs.push('/uploads/' + filename);
+        else docs.push({ filename, path: '/uploads/' + filename });
       }
     }
     update.images = imgs;
@@ -172,7 +204,7 @@ router.put('/:id', auth, upload.array('files', 10), (req, res) => {
     const updated = posts.update(req.params.id, update);
     res.json(updated);
   } catch (err) {
-    console.error(err);
+    console.error('[Posts PUT] error');
     res.status(500).json({ error: 'Error al actualizar' });
   }
 });
