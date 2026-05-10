@@ -29,15 +29,43 @@ if (process.env.NODE_ENV === 'production') {
 // Security headers
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    }
+  } : false,
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  permissionsPolicy: {
+    features: { camera: ["()"], microphone: ["()"], geolocation: ["()"] }
+  }
 }));
 
-// CORS
+// Hide tech stack
+app.disable('x-powered-by');
+
+// CORS — in production same-origin is allowed automatically
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000').split(',');
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) cb(null, true);
-    else cb(new Error('CORS no permitido'));
+    // No origin = same-origin request (production) or server-to-server
+    if (!origin) return cb(null, true);
+    // Check against allowed list
+    if (allowedOrigins.some(o => origin === o.trim())) return cb(null, true);
+    // In production, also allow the Railway auto-generated domain
+    if (process.env.RAILWAY_PUBLIC_DOMAIN && origin === `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`) {
+      return cb(null, true);
+    }
+    cb(new Error('CORS no permitido'));
   },
   credentials: true
 }));
@@ -61,11 +89,13 @@ const tipsLimiter = rateLimit({
 });
 app.use('/api/tips', tipsLimiter);
 
-// Rate limiting - auth (anti-brute-force)
+// Rate limiting - auth (anti-brute-force) — only 5 attempts per 15 min
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: 'Demasiados intentos de login. Intenta en 15 minutos.' }
+  max: 5,
+  message: { error: 'Demasiados intentos de login. Intenta en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 app.use('/api/auth/login', authLimiter);
 
