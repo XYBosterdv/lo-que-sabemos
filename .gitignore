@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build
+client/build/
+dist/
+
+# Uploads (user content)
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Data (JSON database)
+server/data/*.json
+
+# Logs
+*.log
+npm-debug.log*
+server/server.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/skills/
