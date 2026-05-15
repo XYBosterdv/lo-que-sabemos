@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1200px; height: 630px;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0a0a 100%);
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  display: flex; align-items: center; justify-content: center;
+  color: white; overflow: hidden; position: relative;
+}
+.accent-line {
+  position: absolute; top: 0; left: 0; right: 0; height: 6px;
+  background: linear-gradient(90deg, #dc2626, #ef4444, #dc2626);
+}
+.container {
+  text-align: center; padding: 60px; max-width: 900px;
+}
+.badge {
+  display: inline-block; background: #dc2626; color: white;
+  padding: 8px 24px; border-radius: 6px; font-size: 18px;
+  font-weight: 800; letter-spacing: 2px; margin-bottom: 30px;
+}
+h1 {
+  font-size: 64px; font-weight: 900; line-height: 1.1;
+  margin-bottom: 20px; letter-spacing: -1px;
+}
+h1 span { color: #ef4444; }
+p {
+  font-size: 24px; color: #a1a1aa; line-height: 1.5;
+  max-width: 700px; margin: 0 auto 30px;
+}
+.stats {
+  display: flex; gap: 40px; justify-content: center;
+  margin-top: 20px;
+}
+.stat { text-align: center; }
+.stat-num { font-size: 36px; font-weight: 800; color: #ef4444; }
+.stat-label { font-size: 14px; color: #71717a; text-transform: uppercase; letter-spacing: 1px; }
+.footer-text {
+  position: absolute; bottom: 30px; left: 0; right: 0;
+  text-align: center; font-size: 16px; color: #52525b;
+}
+</style>
+</head>
+<body>
+  <div class="accent-line"></div>
+  <div class="container">
+    <div class="badge">INVESTIGACION PUBLICA</div>
+    <h1>Lo que sabemos de<br><span>XY Booster</span></h1>
+    <p>Documentos, testimonios y evidencia sobre la empresa de inversion operando desde Polanco, CDMX</p>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-num">19.6%</div>
+        <div class="stat-label">Rendimiento prometido</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">18+</div>
+        <div class="stat-label">Oficinas declaradas</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">11</div>
+        <div class="stat-label">Proyectos en portafolio</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-text">Envia informacion de forma anonima</div>
+</body>
+</html>
