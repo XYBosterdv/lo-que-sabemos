@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /login
 
-Sitemap: https://lo-que-sabemos-production.up.railway.app/sitemap.xml
+Sitemap: https://xybooster.org/sitemap.xml

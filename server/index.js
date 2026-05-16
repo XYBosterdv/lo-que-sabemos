@@ -71,6 +71,10 @@ app.use(cors({
     if (process.env.RAILWAY_PUBLIC_DOMAIN && origin === `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`) {
       return cb(null, true);
     }
+    // Allow custom domain
+    if (process.env.CUSTOM_DOMAIN && origin === `https://${process.env.CUSTOM_DOMAIN}`) {
+      return cb(null, true);
+    }
     cb(new Error('CORS no permitido'));
   },
   credentials: true
